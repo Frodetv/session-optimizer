@@ -55,31 +55,39 @@ To list all available sessions with date and first message:
 python session_optimizer.py --list
 ```
 ```
-#   Dato              UUID                                  Første melding
-------------------------------------------------------------
-1   2026-10-02 10:36  c2e5b651-...                          hei
-2   2026-10-01 09:24  1e0e4a99-...                          hei
-...
+#   Date               UUID                                  First message
+----------------------------------------------------------------------------------------------------
+1   2026-10-02 10:36   a1b2c3d4-...                          create release notes for ticket 1234
+2   2026-10-01 09:24   e5f6a7b8-...                          run test cases for the login flow
+3   2026-09-30 14:11   c9d0e1f2-...                          deploy version 2.4.1 to staging
 ```
 
 To analyze a specific session, pass the UUID from the list:
 ```bash
-python session_optimizer.py --session 1e0e4a99-de7d-4738-9b32-d8be283254d1
+python session_optimizer.py --session e5f6a7b8-0000-0000-0000-000000000000
 ```
 
 ## What gets saved
 
 Learnings are saved as Markdown files in `~/.claude/projects/<project>/memory/` following the standard Claude Code memory format. Each file includes a frontmatter slug and description so Claude can decide when to load it.
 
-Example output for a "fill in release notes" operation:
+Example output for a "create release notes" operation:
 
 ```
-Direkte filsti (skip grep):
-- kliniske-verktoy/arena-eyecare-diabetisk-retinopati.md
+Operation type : release-notes-backend
+Summary        : Created release notes and test cases for a backend API change
 
-DeliveryArtifact = retinaintegration
-ProductName = Arena Diabetisk retinopati
-Relevant kode: src/RetinaIntegration/Forms/
+Redundant steps:
+  - Searched for documentation file (path is already known for this component)
+  - Ran git grep to find delivery artifact (already known from previous sessions)
+
+Can be preloaded:
+  + DeliveryArtifact = my-service
+  + ProductName = My Product Name
+  + Docs path: docs/my-component.md (skip search)
+
+Proposed memory updates:
+  [create] project_myservice_shortcuts.md — Shortcuts for release notes on MyService
 ```
 
 ## Files
