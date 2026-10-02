@@ -9,12 +9,33 @@ Analyser hva som ble gjort i sesjonen og oppdater minnefiler med kortveier for n
 
 ## Fremgangsmåte
 
+### Steg 0 – Hvis brukeren vil velge sesjon (valgfritt)
+
+Hvis brukeren vil analysere en tidligere sesjon og ikke den siste, kjør:
+
+```bash
+python C:/DIPS/_git/session-optimizer/session_optimizer.py --list
+```
+
+Les output og presenter listen som en **formatert markdown-tabell** i svaret ditt (ikke vis rå Bash-output). Eksempel:
+
+| # | Dato | UUID | Første melding |
+|---|------|------|----------------|
+| 1 | 2026-10-02 10:42 | c2e5b651-... | tc og rn for 746192 |
+| 2 | 2026-10-01 09:24 | 1e0e4a99-... | ok |
+
+Spør deretter hvilken sesjon brukeren vil analysere.
+
 ### Steg 1 – Ekstraher sesjonstranskripsjonen
 
 Kjør skriptet for å lese og komprimere sesjonens JSONL:
 
 ```bash
+# Siste sesjon:
 python C:/DIPS/_git/session-optimizer/session_optimizer.py
+
+# Spesifikk sesjon (UUID fra listen):
+python C:/DIPS/_git/session-optimizer/session_optimizer.py --session <uuid>
 ```
 
 Output: én linje med metadata (JSON), deretter `---TRANSCRIPT---` etterfulgt av komprimert transkripsjon.

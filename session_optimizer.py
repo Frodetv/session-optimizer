@@ -93,20 +93,26 @@ def first_user_message(jsonl_path: Path) -> str:
     return best
 
 
-def list_sessions() -> None:
+def list_sessions(limit: int = 20) -> None:
     from datetime import datetime
     jsonl_files = all_session_files()
     if not jsonl_files:
         print("Ingen sesjoner funnet.", file=sys.stderr)
         return
 
+    shown = jsonl_files[:limit]
+    remaining = len(jsonl_files) - len(shown)
+
     print(f"{'#':<3} {'Dato':<17} {'UUID':<36}  Første melding")
     print("-" * 100)
-    for i, f in enumerate(jsonl_files, 1):
+    for i, f in enumerate(shown, 1):
         mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
         uuid = f.stem
         first = first_user_message(f)
         print(f"{i:<3} {mtime:<17} {uuid:<36}  {first}")
+
+    if remaining > 0:
+        print(f"\n... og {remaining} eldre sesjoner. Bruk --limit {len(jsonl_files)} for å se alle.")
 
 
 # --- Parsing ---
@@ -221,10 +227,11 @@ def main():
     )
     parser.add_argument("--session", help="UUID, filnavn eller full sti til sesjon (default: siste)")
     parser.add_argument("--list", action="store_true", help="Vis tilgjengelige sesjoner fra alle prosjekter")
+    parser.add_argument("--limit", type=int, default=20, help="Maks antall sesjoner i listen (default: 20)")
     args = parser.parse_args()
 
     if args.list:
-        list_sessions()
+        list_sessions(limit=args.limit)
         return
 
     if args.session:
