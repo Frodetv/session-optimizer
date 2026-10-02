@@ -19,7 +19,22 @@ Kjør:
 ```bash
 python C:/DIPS/_git/session-optimizer/session_optimizer.py --analyze-all
 ```
-Les JSON med liste over uanalyserte sesjoner. Gå gjennom dem én etter én (Steg 1–5 for hver). Hopp over sesjoner med færre enn 3 tool calls.
+Les JSON med liste over uanalyserte sesjoner.
+
+**Før du starter – estimer og spør brukeren:**
+- Tell antall uanalyserte sesjoner (`unanalyzed_count`)
+- Estimer tid: ca. 1–2 minutter per sesjon
+- Presenter alternativene og spør hva brukeren vil gjøre:
+
+  > "Det er **N uanalyserte sesjoner** (~X–Y minutter å analysere alle). Hva vil du gjøre?
+  > 1. Analyser alle (eldste først)
+  > 2. Start med de største sesjonene (flest token-besparelser)
+  > 3. Velg antall å analysere nå (f.eks. de 5 siste)
+  > 4. Avbryt"
+
+Sorter ved alternativ 2: bruk `--list --json -s` og match UUID-er mot uanalyserte.
+Hopp over sesjoner med færre enn 3 tool calls – tell dem ikke med i estimatet.
+Gå gjennom valgte sesjoner én etter én (Steg 1–5 for hver).
 
 **C) Brukeren vil velge sesjon fra liste**
 Kjør:
