@@ -44,6 +44,8 @@ def find_latest_session(project_dir: Path) -> Path | None:
 
 
 def first_user_message(jsonl_path: Path) -> str:
+    GREETINGS = {"hei", "hei!", "hei :)", "hello", "hi", "hey", "yo", "hei :)"}
+    best = "(ukjent)"
     try:
         with open(jsonl_path, encoding="utf-8") as f:
             for line in f:
@@ -51,13 +53,17 @@ def first_user_message(jsonl_path: Path) -> str:
                     obj = json.loads(line)
                     if obj.get("type") == "user":
                         content = obj.get("message", {}).get("content", "")
-                        if isinstance(content, str) and content.strip():
-                            return content.strip()[:80]
+                        if isinstance(content, str):
+                            text = content.strip()
+                            if text and text.lower() not in GREETINGS:
+                                return text[:80]
+                            elif text and best == "(ukjent)":
+                                best = text[:80]
                 except json.JSONDecodeError:
                     pass
     except OSError:
         pass
-    return "(ukjent)"
+    return best
 
 
 def list_sessions(project_dir: Path) -> None:

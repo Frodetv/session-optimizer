@@ -58,9 +58,11 @@ python session_optimizer.py --list
 #   Date               UUID                                  First message
 ----------------------------------------------------------------------------------------------------
 1   2026-10-02 10:36   a1b2c3d4-...                          create release notes for ticket 1234
-2   2026-10-01 09:24   e5f6a7b8-...                          run test cases for the login flow
-3   2026-09-30 14:11   c9d0e1f2-...                          deploy version 2.4.1 to staging
+2   2026-10-01 09:24   e5f6a7b8-...                          deploy version 2.4.1 to staging
+3   2026-09-30 14:11   c9d0e1f2-...                          run test cases for the login flow
 ```
+
+Greetings like "hi" or "hey" are skipped — the list shows the first substantive message instead.
 
 To analyze a specific session, pass the UUID from the list:
 ```bash
