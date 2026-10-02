@@ -22,10 +22,39 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 
 # --- Konfig ---
 
-DEFAULT_PROJECT_DIR = Path.home() / ".claude" / "projects" / "C--Users-frtv"
+CLAUDE_DIR = Path.home() / ".claude"
+PROJECTS_DIR = CLAUDE_DIR / "projects"
 MAX_TOOL_RESULT_CHARS = 300
 MAX_TOOL_INPUT_CHARS = 400
 MAX_TEXT_CHARS = 400
+
+
+def all_session_files() -> list[Path]:
+    """Samle bruker-initierte JSONL-sesjonsfiler fra alle prosjektmapper."""
+    if not PROJECTS_DIR.exists():
+        return []
+    return sorted(
+        (f for f in PROJECTS_DIR.rglob("*.jsonl") if not f.stem.startswith("agent-")),
+        key=lambda f: f.stat().st_mtime,
+        reverse=True,
+    )
+
+
+def current_project_dir() -> Path:
+    """Finn prosjektmappen som tilsvarer gjeldende arbeidsmappe."""
+    cwd = Path.cwd()
+    # Konverter sti til Claude-prosjektnavn-format: C:\foo\bar → C--foo--bar
+    slug = str(cwd).replace("\\", "--").replace("/", "--").replace(":", "")
+    candidate = PROJECTS_DIR / slug
+    if candidate.exists():
+        return candidate
+    # Fallback: nyeste prosjektmappe
+    dirs = sorted(
+        [d for d in PROJECTS_DIR.iterdir() if d.is_dir()],
+        key=lambda d: d.stat().st_mtime,
+        reverse=True,
+    )
+    return dirs[0] if dirs else PROJECTS_DIR
 
 
 # --- Hjelpefunksjoner ---
@@ -36,11 +65,9 @@ def truncate(text: str, max_chars: int) -> str:
     return text[:max_chars] + f"…[+{len(text)-max_chars}]"
 
 
-def find_latest_session(project_dir: Path) -> Path | None:
-    jsonl_files = list(project_dir.glob("*.jsonl"))
-    if not jsonl_files:
-        return None
-    return max(jsonl_files, key=lambda f: f.stat().st_mtime)
+def find_latest_session() -> Path | None:
+    files = all_session_files()
+    return files[0] if files else None
 
 
 def first_user_message(jsonl_path: Path) -> str:
@@ -66,13 +93,9 @@ def first_user_message(jsonl_path: Path) -> str:
     return best
 
 
-def list_sessions(project_dir: Path) -> None:
+def list_sessions() -> None:
     from datetime import datetime
-    jsonl_files = sorted(
-        project_dir.glob("*.jsonl"),
-        key=lambda f: f.stat().st_mtime,
-        reverse=True,
-    )
+    jsonl_files = all_session_files()
     if not jsonl_files:
         print("Ingen sesjoner funnet.", file=sys.stderr)
         return
@@ -180,15 +203,15 @@ def count_tool_calls(events: list[dict]) -> int:
 
 # --- Main ---
 
-def resolve_session(value: str, project_dir: Path) -> Path:
+def resolve_session(value: str) -> Path:
     p = Path(value)
     if p.exists():
         return p
-    # Prøv som UUID (med eller uten .jsonl)
+    # Søk etter UUID i alle prosjektmapper
     stem = p.stem if p.suffix == ".jsonl" else value
-    candidate = project_dir / f"{stem}.jsonl"
-    if candidate.exists():
-        return candidate
+    for f in all_session_files():
+        if f.stem == stem:
+            return f
     raise FileNotFoundError(f"Fant ikke sesjon: {value}")
 
 
@@ -197,22 +220,21 @@ def main():
         description="Komprimer og skriv ut Claude Code-sesjon for analyse"
     )
     parser.add_argument("--session", help="UUID, filnavn eller full sti til sesjon (default: siste)")
-    parser.add_argument("--list", action="store_true", help="Vis tilgjengelige sesjoner")
-    parser.add_argument("--project-dir", type=Path, default=DEFAULT_PROJECT_DIR)
+    parser.add_argument("--list", action="store_true", help="Vis tilgjengelige sesjoner fra alle prosjekter")
     args = parser.parse_args()
 
     if args.list:
-        list_sessions(args.project_dir)
+        list_sessions()
         return
 
     if args.session:
         try:
-            session_file = resolve_session(args.session, args.project_dir)
+            session_file = resolve_session(args.session)
         except FileNotFoundError as e:
             print(str(e), file=sys.stderr)
             sys.exit(1)
     else:
-        session_file = find_latest_session(args.project_dir)
+        session_file = find_latest_session()
 
     if not session_file or not session_file.exists():
         print("Feil: Ingen sesjonsfil funnet.", file=sys.stderr)
