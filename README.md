@@ -42,7 +42,7 @@ Or manually copy `SKILL.md` to your Claude skills folder:
 
 ## Usage
 
-Run `/session-optimize` at the end of any session where you performed a repeatable operation (e.g. filling in release notes, creating test cases, tagging a release).
+Run `/session-optimize` at the end of any session where you performed a repeatable operation.
 
 ```
 /session-optimize
@@ -50,23 +50,57 @@ Run `/session-optimize` at the end of any session where you performed a repeatab
 
 Claude will present the analysis and ask for confirmation before writing anything to disk.
 
-To list all available sessions with date and first message:
+### Analyze all unanalyzed sessions
+
+```
+/session-optimize --analyze-all
+```
+
+Claude estimates how long it will take and asks whether to analyze all sessions, start with the largest ones, or pick a number.
+
+### List sessions
+
 ```bash
 python session_optimizer.py --list
 ```
+
 ```
-#   Date               UUID                                  First message
-----------------------------------------------------------------------------------------------------
-1   2026-10-02 10:36   a1b2c3d4-...                          create release notes for ticket 1234
-2   2026-10-01 09:24   e5f6a7b8-...                          deploy version 2.4.1 to staging
-3   2026-09-30 14:11   c9d0e1f2-...                          run test cases for the login flow
+#      Dato              Str      UUID                                  Nøkkelord
+-------------------------------------------------------------------------------------------------------------------
+1   ✓  2026-10-02 12:07  1.9 MB   c2e5b651-...                          ado-release-notes, session-optimize, PBI 746192
+2      2026-09-29 08:50  1.0 MB   44c55850-...                          PBI 744825, TC, kjernejournal
+3      2026-09-21 12:36  545 KB   5180cb8d-...                          brukerdok, release-tag, PBI 743755
 ```
 
-Greetings like "hi" or "hey" are skipped — the list shows the first substantive message instead.
+- `✓` marks sessions that have already been analyzed
+- Keywords are extracted automatically from skill calls, ADO work item IDs, and topic words in user messages
+- Greetings are skipped — keywords describe what was actually done
 
-To analyze a specific session, pass the UUID from the list:
+Sort by file size (largest sessions = most to save):
+```bash
+python session_optimizer.py --list -s
+```
+
+Show only unanalyzed sessions:
+```bash
+python session_optimizer.py --list --unanalyzed
+```
+
+Analyze a specific session by UUID:
 ```bash
 python session_optimizer.py --session e5f6a7b8-0000-0000-0000-000000000000
+```
+
+## Session tracking
+
+Analyzed sessions are recorded in `~/.claude/session-optimizer-history.json` with timestamp, operation type, and which memory files were updated. The `--list` output shows `✓` for sessions already processed.
+
+When saving memory files, the skill calls:
+```bash
+python session_optimizer.py \
+  --mark-analyzed <uuid> \
+  --operation-type <type> \
+  --memory-files <file1.md,file2.md>
 ```
 
 ## What gets saved
