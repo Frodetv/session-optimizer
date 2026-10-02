@@ -17,6 +17,7 @@ Bruk:
 import argparse
 import io
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -116,6 +117,90 @@ def first_user_message(jsonl_path: Path) -> str:
     return best
 
 
+_TOPIC_PATTERNS = [
+    (r"\btc\b|\btf\b|testcase|test case", "TC"),
+    (r"\brn\b|release notes", "RN"),
+    (r"release-tag|release tag|\blansering\b|\blanser\b", "release-tag"),
+    (r"brukerdok", "brukerdok"),
+    (r"log.sjekk|kubernetes|kubectl", "log-sjekk"),
+    (r"vekstkurve|growthchart", "vekstkurve"),
+    (r"retina", "retina"),
+    (r"kjernejournal", "kjernejournal"),
+    (r"gatconnector|gatcollector|gatimporter", "gat"),
+    (r"ehrexport", "ehrexport"),
+    (r"digitallyactive|digitalt aktiv", "digitallyactive"),
+    (r"tilemanager|tile manager", "tilemanager"),
+    (r"oracle|sql\b", "SQL"),
+    (r"vibe.?code|hobby|privat", "privat"),
+    (r"session.optim", "session-optimizer"),
+]
+
+
+def extract_keywords(jsonl_path: Path) -> list[str]:
+    """Rask heuristisk skanning – returnerer 1-3 nøkkelord for sesjonen."""
+    skills: list[str] = []
+    work_items: list[str] = []
+    topics: list[str] = []
+    seen_topics: set[str] = set()
+
+    try:
+        with open(jsonl_path, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                if obj.get("type") == "user":
+                    content = obj.get("message", {}).get("content", "")
+                    # Kun ren bruker-tekst – ikke tool_result-blokker
+                    if isinstance(content, str):
+                        text = content
+                    elif isinstance(content, list):
+                        text = " ".join(
+                            b.get("text", "")
+                            for b in content
+                            if isinstance(b, dict) and b.get("type") == "text"
+                        )
+                    else:
+                        text = ""
+                    for pat, label in _TOPIC_PATTERNS:
+                        if label not in seen_topics and re.search(pat, text, re.IGNORECASE):
+                            topics.append(label)
+                            seen_topics.add(label)
+                    # Kun 6-sifrede ADO-tall i DIPS-området (7xxxxx)
+                    for m in re.findall(r"\b(7\d{5})\b", text):
+                        wi = f"PBI {m}"
+                        if wi not in work_items:
+                            work_items.append(wi)
+
+                elif obj.get("type") == "assistant":
+                    for block in obj.get("message", {}).get("content", []):
+                        if block.get("type") == "tool_use" and block.get("name") == "Skill":
+                            skill = block.get("input", {}).get("skill", "")
+                            if skill and skill not in skills:
+                                skills.append(skill)
+    except OSError:
+        pass
+
+    result: list[str] = []
+    # Skill-kall er mest informative
+    result.extend(skills[:2])
+    # PBI-numre (maks 2)
+    for wi in work_items[:2]:
+        if len(result) < 3:
+            result.append(wi)
+    # Emneord fra meldinger
+    for t in topics:
+        if t not in result and len(result) < 3:
+            result.append(t)
+
+    return result or ["(ukjent)"]
+
+
 def format_size(bytes: int) -> str:
     if bytes < 1024:
         return f"{bytes} B"
@@ -150,6 +235,7 @@ def list_sessions(limit: int = 20, as_json: bool = False, sort_by_size: bool = F
         analyzed = is_analyzed(f.stem, history)
         analyzed_at = history["analyzed"].get(f.stem, {}).get("analyzed_at", "")
         op_type = history["analyzed"].get(f.stem, {}).get("operation_type", "")
+        keywords = extract_keywords(f)
         rows.append({
             "index": i,
             "date": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
@@ -158,6 +244,7 @@ def list_sessions(limit: int = 20, as_json: bool = False, sort_by_size: bool = F
             "size_bytes": stat.st_size,
             "path": str(f),
             "first_message": first_user_message(f),
+            "keywords": keywords,
             "analyzed": analyzed,
             "analyzed_at": analyzed_at,
             "operation_type": op_type,
@@ -168,11 +255,12 @@ def list_sessions(limit: int = 20, as_json: bool = False, sort_by_size: bool = F
                          ensure_ascii=False))
         return
 
-    print(f"{'#':<3} {'':2} {'Dato':<17} {'Str':<8} {'UUID':<36}  Første melding")
+    print(f"{'#':<3} {'':2} {'Dato':<17} {'Str':<8} {'UUID':<36}  Nøkkelord")
     print("-" * 115)
     for r in rows:
         check = "✓" if r["analyzed"] else " "
-        print(f"{r['index']:<3} {check}  {r['date']:<17} {r['size']:<8} {r['uuid']:<36}  {r['first_message']}")
+        kw = ", ".join(r["keywords"])
+        print(f"{r['index']:<3} {check}  {r['date']:<17} {r['size']:<8} {r['uuid']:<36}  {kw}")
 
     if remaining > 0:
         label = "uanalyserte " if unanalyzed_only else ""
