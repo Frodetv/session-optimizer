@@ -7,6 +7,10 @@ description: Analyze the current session for token savings and update memory fil
 
 Analyze what was done in the session and update memory files with shortcuts for next time.
 
+> **Setup:** Install with `pip install -e /path/to/session-optimizer` so the `session-optimizer`
+> command is available. Alternatively, replace `session-optimizer` below with
+> `python /path/to/session_optimizer.py`.
+
 ## Steps
 
 ### Step 0 – Choose mode
@@ -17,7 +21,7 @@ Go directly to Step 1.
 **B) Analyze all unanalyzed sessions (`--analyze-all`)**
 Run:
 ```bash
-python C:/DIPS/_git/session-optimizer/session_optimizer.py --analyze-all
+session-optimizer --analyze-all
 ```
 Read the JSON with the list of unanalyzed sessions.
 
@@ -32,14 +36,14 @@ Read the JSON with the list of unanalyzed sessions.
   > 3. Choose how many to analyze now (e.g. the last 5)
   > 4. Cancel"
 
-For option 2: use `--list --json -s` and match UUIDs against unanalyzed sessions.
+For option 2: use `session-optimizer --list --json -s` and match UUIDs against unanalyzed sessions.
 Skip sessions with fewer than 3 tool calls — don't count them in the estimate.
 Work through the selected sessions one by one (Steps 1–5 for each).
 
 **C) User wants to choose a session from the list**
 Run:
 ```bash
-python C:/DIPS/_git/session-optimizer/session_optimizer.py --list --json
+session-optimizer --list --json
 ```
 Present the list as a markdown table with columns: `#`, `✓`, `Date`, `Size`, `Keywords`, `Open`.
 - `✓` column: show ✓ if `analyzed == true` in JSON, blank otherwise
@@ -53,10 +57,10 @@ Ask which session the user wants to analyze.
 
 ```bash
 # Latest (or latest unanalyzed):
-python C:/DIPS/_git/session-optimizer/session_optimizer.py
+session-optimizer
 
 # Specific session:
-python C:/DIPS/_git/session-optimizer/session_optimizer.py --session <uuid>
+session-optimizer --session <uuid>
 ```
 
 Output: one line of metadata (JSON including `uuid` field), then `---TRANSCRIPT---` followed by the compressed transcript.
@@ -69,8 +73,6 @@ Output: one line of metadata (JSON including `uuid` field), then `---TRANSCRIPT-
 4. **Proposed memory files**: Concrete memory file updates
 
 ### Step 3 – Present findings
-
-Show the user:
 
 | | |
 |---|---|
@@ -88,7 +90,7 @@ If yes:
 3. **Mark the session as analyzed:**
 
 ```bash
-python C:/DIPS/_git/session-optimizer/session_optimizer.py \
+session-optimizer \
   --mark-analyzed <uuid> \
   --operation-type <operation-type> \
   --memory-files <filename1.md,filename2.md>
