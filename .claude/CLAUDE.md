@@ -1,41 +1,29 @@
 # session-optimizer
 
-Verktøy som analyserer Claude Code-sesjoner og oppdaterer minnefiler for å spare tokens neste gang.
+Tool that analyzes Claude Code sessions and updates memory files to save tokens next time.
 
-## Oppsett
+## Setup
 
-```
-pip install anthropic
-```
+Run `.\install.ps1` to install the skill, or copy `SKILL.md` manually to `~/.claude/skills/session-optimize/SKILL.md`.
 
-## Bruk
+**Requirements:** Python 3.11+
+
+## Usage
 
 ```bash
-# Test hva som ville blitt gjort (ingen endringer):
-python session_optimizer.py --dry-run
-
-# Analyser og lagre:
+# Latest session:
 python session_optimizer.py
 
-# Spesifiser sesjonsfil manuelt:
-python session_optimizer.py --session C:/Users/frtv/.claude/projects/C--Users-frtv/<uuid>.jsonl
+# Specific session:
+python session_optimizer.py --session <uuid>
+
+# List sessions (sorted by size):
+python session_optimizer.py --list -s
+
+# Mark a session as analyzed:
+python session_optimizer.py --mark-analyzed <uuid> --operation-type deploy --memory-files file.md
 ```
 
-## Installere skillen
+## Session files
 
-```powershell
-.\install.ps1
-```
-
-Eller manuelt: kopier `SKILL.md` til `~/.claude/skills/session-optimize/SKILL.md`.
-
-## Avhengigheter
-
-- `ANTHROPIC_API_KEY` i miljøvariabel (settes automatisk av Claude Code)
-- Python 3.11+
-- `anthropic` pakke
-
-## Sesjonsfiler
-
-Lagres i: `C:/Users/frtv/.claude/projects/C--Users-frtv/*.jsonl`  
-Siste sesjon velges automatisk basert på mtime.
+Stored in `~/.claude/projects/<project>/*.jsonl`. Latest session is selected automatically by mtime.

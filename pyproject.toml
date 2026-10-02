@@ -1,7 +1,7 @@
 [project]
 name = "session-optimizer"
 version = "0.1.0"
-description = "Analyser Claude Code-sesjoner for å spare tokens neste gang"
+description = "Analyze Claude Code sessions to save tokens next time"
 requires-python = ">=3.11"
 dependencies = ["anthropic>=0.40.0"]
 

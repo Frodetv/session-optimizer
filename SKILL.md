@@ -1,125 +1,125 @@
 ---
 name: session-optimize
-description: Analyser gjeldende sesjon for token-besparelser og oppdater minnefiler. Bruk denne skillen når brukeren ber om å analysere sesjonen, finne token-besparelser, optimalisere neste sesjon, lagre lærdommer, eller analysere alle sesjoner. Triggres av fraser som "analyser sesjonen", "optimaliser", "lagre lærdommer", "token-besparelser", "session-optimize", "analyser alle sesjoner".
+description: Analyze the current session for token savings and update memory files. Use this skill when the user asks to analyze the session, find token savings, optimize the next session, save learnings, or analyze all sessions. Triggered by phrases like "analyze session", "optimize", "save learnings", "token savings", "session-optimize", "analyze all sessions".
 ---
 
 # Session Optimizer
 
-Analyser hva som ble gjort i sesjonen og oppdater minnefiler med kortveier for neste gang.
+Analyze what was done in the session and update memory files with shortcuts for next time.
 
-## Fremgangsmåte
+## Steps
 
-### Steg 0 – Velg modus
+### Step 0 – Choose mode
 
-**A) Analyser siste sesjon (default)**
-Gå rett til Steg 1.
+**A) Analyze latest session (default)**
+Go directly to Step 1.
 
-**B) Analyser alle uanalyserte sesjoner (`--analyze-all`)**
-Kjør:
+**B) Analyze all unanalyzed sessions (`--analyze-all`)**
+Run:
 ```bash
 python C:/DIPS/_git/session-optimizer/session_optimizer.py --analyze-all
 ```
-Les JSON med liste over uanalyserte sesjoner.
+Read the JSON with the list of unanalyzed sessions.
 
-**Før du starter – estimer og spør brukeren:**
-- Tell antall uanalyserte sesjoner (`unanalyzed_count`)
-- Estimer tid: ca. 1–2 minutter per sesjon
-- Presenter alternativene og spør hva brukeren vil gjøre:
+**Before starting – estimate and ask the user:**
+- Count the number of unanalyzed sessions (`unanalyzed_count`)
+- Estimate time: ~1–2 minutes per session
+- Present the options and ask what the user wants to do:
 
-  > "Det er **N uanalyserte sesjoner** (~X–Y minutter å analysere alle). Hva vil du gjøre?
-  > 1. Analyser alle (eldste først)
-  > 2. Start med de største sesjonene (flest token-besparelser)
-  > 3. Velg antall å analysere nå (f.eks. de 5 siste)
-  > 4. Avbryt"
+  > "There are **N unanalyzed sessions** (~X–Y minutes to analyze all). What would you like to do?
+  > 1. Analyze all (oldest first)
+  > 2. Start with the largest sessions (most token savings)
+  > 3. Choose how many to analyze now (e.g. the last 5)
+  > 4. Cancel"
 
-Sorter ved alternativ 2: bruk `--list --json -s` og match UUID-er mot uanalyserte.
-Hopp over sesjoner med færre enn 3 tool calls – tell dem ikke med i estimatet.
-Gå gjennom valgte sesjoner én etter én (Steg 1–5 for hver).
+For option 2: use `--list --json -s` and match UUIDs against unanalyzed sessions.
+Skip sessions with fewer than 3 tool calls — don't count them in the estimate.
+Work through the selected sessions one by one (Steps 1–5 for each).
 
-**C) Brukeren vil velge sesjon fra liste**
-Kjør:
+**C) User wants to choose a session from the list**
+Run:
 ```bash
 python C:/DIPS/_git/session-optimizer/session_optimizer.py --list --json
 ```
-Presenter listen som markdown-tabell med kolonner: `#`, `✓`, `Dato`, `Str`, `Første melding`, `Åpne`.
-- `✓`-kolonnen: vis ✓ hvis `analyzed == true` i JSON, blank ellers
-- `Åpne`: klikkbar fillenke `[åpne](file:///<path>)` (erstatt `\` med `/`)
+Present the list as a markdown table with columns: `#`, `✓`, `Date`, `Size`, `Keywords`, `Open`.
+- `✓` column: show ✓ if `analyzed == true` in JSON, blank otherwise
+- `Open`: clickable file link `[open](file:///<path>)` (replace `\` with `/`)
 
-Spør hvilken sesjon brukeren vil analysere.
+Ask which session the user wants to analyze.
 
 ---
 
-### Steg 1 – Ekstraher sesjonstranskripsjonen
+### Step 1 – Extract the session transcript
 
 ```bash
-# Siste (eller siste uanalyserte):
+# Latest (or latest unanalyzed):
 python C:/DIPS/_git/session-optimizer/session_optimizer.py
 
-# Spesifikk sesjon:
+# Specific session:
 python C:/DIPS/_git/session-optimizer/session_optimizer.py --session <uuid>
 ```
 
-Output: én linje med metadata (JSON inkl. `uuid`-felt), deretter `---TRANSCRIPT---` etterfulgt av komprimert transkripsjon.
+Output: one line of metadata (JSON including `uuid` field), then `---TRANSCRIPT---` followed by the compressed transcript.
 
-### Steg 2 – Analyser transkripsjonen
+### Step 2 – Analyze the transcript
 
-1. **Operasjonstype**: Hva ble gjort? (f.eks. "tc-og-rn-retina", "release-tag-gatconnector")
-2. **Redundante steg**: Hvilke tool calls var overflødige?
-3. **Forhåndslastbar kontekst**: Konkrete verdier, stier, regler som burde vært kjent
-4. **Foreslåtte minnefiler**: Konkrete minnefil-oppdateringer
+1. **Operation type**: What was done? (e.g. "deploy-backend", "debug-auth-flow")
+2. **Redundant steps**: Which tool calls were unnecessary?
+3. **Pre-loadable context**: Concrete values, paths, rules that should have been known upfront
+4. **Proposed memory files**: Concrete memory file updates
 
-### Steg 3 – Presenter funn
+### Step 3 – Present findings
 
-Vis for brukeren:
+Show the user:
 
 | | |
 |---|---|
-| Operasjonstype | … |
-| Redundante steg | (liste) |
-| Kan forhåndslastes | (liste med konkrete verdier) |
+| Operation type | … |
+| Redundant steps | (list) |
+| Can be pre-loaded | (list with concrete values) |
 
-### Steg 4 – Bekreft og lagre
+### Step 4 – Confirm and save
 
-Spør: **"Skal jeg lagre disse lærdommene til minnefilene?"**
+Ask: **"Should I save these learnings to the memory files?"**
 
-Hvis ja:
-1. Skriv minnefiler til `C:/Users/frtv/.claude/projects/C--Users-frtv/memory/<filnavn>.md`
-2. Oppdater `C:/Users/frtv/.claude/projects/C--Users-frtv/memory/MEMORY.md`
-3. **Marker sesjonen som analysert:**
+If yes:
+1. Write memory files to `~/.claude/projects/<project>/memory/<filename>.md`
+2. Update `~/.claude/projects/<project>/memory/MEMORY.md`
+3. **Mark the session as analyzed:**
 
 ```bash
 python C:/DIPS/_git/session-optimizer/session_optimizer.py \
   --mark-analyzed <uuid> \
-  --operation-type <operasjonstype> \
-  --memory-files <filnavn1.md,filnavn2.md>
+  --operation-type <operation-type> \
+  --memory-files <filename1.md,filename2.md>
 ```
 
-UUID finnes i metadata-linjen fra Steg 1 (`"uuid": "..."`).
+UUID is found in the metadata line from Step 1 (`"uuid": "..."`).
 
-Minnefil-format:
+Memory file format:
 ```markdown
 ---
-name: kort-kebab-slug
-description: Én linje – brukes til å avgjøre relevans i fremtidige samtaler
+name: short-kebab-slug
+description: One line – used to decide relevance in future conversations
 metadata:
   type: project
 ---
 
-Innhold med konkrete verdier, stier og regler.
+Content with concrete values, paths, and rules.
 ```
 
-### Steg 5 – Rapporter
+### Step 5 – Report
 
-Fortell hva som ble lagret, hvilken sesjon som ble markert som analysert, og hvilke token-besparelser dette gir neste gang.
+Tell the user what was saved, which session was marked as analyzed, and what token savings this gives next time.
 
-Ved `--analyze-all`: fortsett med neste uanalyserte sesjon.
+For `--analyze-all`: continue with the next unanalyzed session.
 
 ---
 
-## Viktige noter
+## Important notes
 
-- Skriptet gjør ingen API-kall – Claude analyserer selv i sesjonen
-- Sesjoner med færre enn 3 tool calls er ikke verdt å analysere – hopp over
-- `~/.claude/session-optimizer-history.json` sporer hvilke sesjoner som er analysert
-- Minnefilene leses automatisk i neste sesjon via MEMORY.md-indeksen
-- `--list` viser ✓ for allerede analyserte sesjoner
+- The script makes no API calls – Claude analyzes in-session
+- Sessions with fewer than 3 tool calls are not worth analyzing – skip them
+- `~/.claude/session-optimizer-history.json` tracks which sessions have been analyzed
+- Memory files are automatically loaded in the next session via the MEMORY.md index
+- `--list` shows ✓ for already-analyzed sessions

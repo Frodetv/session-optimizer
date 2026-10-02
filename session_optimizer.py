@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-session-optimizer: Les og komprimer Claude Code-sesjon for token-analyse.
+session-optimizer: Read and compress a Claude Code session for token analysis.
 
-Skriptet gjør INGEN API-kall selv. Det leser og komprimerer sesjonens JSONL
-og skriver den til stdout slik at Claude Code kan analysere den i-sesjon.
+The script makes NO API calls. It reads and compresses the session's JSONL
+and writes it to stdout so Claude Code can analyze it in-session.
 
-Bruk:
-  python session_optimizer.py                          # siste sesjon
-  python session_optimizer.py --list                   # vis tilgjengelige sesjoner
-  python session_optimizer.py --list --unanalyzed      # vis kun uanalyserte sesjoner
-  python session_optimizer.py --session <uuid|sti>     # spesifikk sesjon
-  python session_optimizer.py --analyze-all            # list alle uanalyserte (for skill-loop)
-  python session_optimizer.py --mark-analyzed <uuid>   # marker sesjon som analysert
+Usage:
+  python session_optimizer.py                          # latest session
+  python session_optimizer.py --list                   # list available sessions
+  python session_optimizer.py --list --unanalyzed      # list only unanalyzed sessions
+  python session_optimizer.py --session <uuid|path>    # specific session
+  python session_optimizer.py --analyze-all            # list all unanalyzed (for skill loop)
+  python session_optimizer.py --mark-analyzed <uuid>   # mark session as analyzed
 """
 
 import argparse
@@ -22,10 +22,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Tving UTF-8 på stdout (Windows cp1252 feiler på norske tegn)
+# Force UTF-8 on stdout (Windows cp1252 fails on non-ASCII characters)
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-# --- Konfig ---
+# --- Config ---
 
 CLAUDE_DIR = Path.home() / ".claude"
 PROJECTS_DIR = CLAUDE_DIR / "projects"
@@ -35,7 +35,7 @@ MAX_TOOL_INPUT_CHARS = 400
 MAX_TEXT_CHARS = 400
 
 
-# --- Analysert-historikk ---
+# --- Analysis history ---
 
 def load_history() -> dict:
     if not HISTORY_FILE.exists():
@@ -58,17 +58,17 @@ def mark_analyzed(uuid: str, operation_type: str = "", memory_files: list[str] |
         "memory_files": memory_files or [],
     }
     save_history(history)
-    print(f"Markert som analysert: {uuid}")
+    print(f"Marked as analyzed: {uuid}")
 
 
 def is_analyzed(uuid: str, history: dict) -> bool:
     return uuid in history.get("analyzed", {})
 
 
-# --- Sesjonsfiler ---
+# --- Session files ---
 
 def all_session_files() -> list[Path]:
-    """Samle bruker-initierte JSONL-sesjonsfiler fra alle prosjektmapper."""
+    """Collect user-initiated JSONL session files from all project directories."""
     if not PROJECTS_DIR.exists():
         return []
     return sorted(
@@ -78,7 +78,7 @@ def all_session_files() -> list[Path]:
     )
 
 
-# --- Hjelpefunksjoner ---
+# --- Helpers ---
 
 def truncate(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:
@@ -95,8 +95,8 @@ def find_latest_session(unanalyzed_only: bool = False) -> Path | None:
 
 
 def first_user_message(jsonl_path: Path) -> str:
-    GREETINGS = {"hei", "hei!", "hei :)", "hello", "hi", "hey", "yo", "hei :)"}
-    best = "(ukjent)"
+    GREETINGS = {"hello", "hi", "hey", "yo", "hei", "hei!", "sup"}
+    best = "(unknown)"
     try:
         with open(jsonl_path, encoding="utf-8") as f:
             for line in f:
@@ -108,7 +108,7 @@ def first_user_message(jsonl_path: Path) -> str:
                             text = content.strip()
                             if text and text.lower() not in GREETINGS:
                                 return text[:80]
-                            elif text and best == "(ukjent)":
+                            elif text and best == "(unknown)":
                                 best = text[:80]
                 except json.JSONDecodeError:
                     pass
@@ -118,26 +118,22 @@ def first_user_message(jsonl_path: Path) -> str:
 
 
 _TOPIC_PATTERNS = [
-    (r"\btc\b|\btf\b|testcase|test case", "TC"),
-    (r"\brn\b|release notes", "RN"),
-    (r"release-tag|release tag|\blansering\b|\blanser\b", "release-tag"),
-    (r"brukerdok", "brukerdok"),
-    (r"log.sjekk|kubernetes|kubectl", "log-sjekk"),
-    (r"vekstkurve|growthchart", "vekstkurve"),
-    (r"retina", "retina"),
-    (r"kjernejournal", "kjernejournal"),
-    (r"gatconnector|gatcollector|gatimporter", "gat"),
-    (r"ehrexport", "ehrexport"),
-    (r"digitallyactive|digitalt aktiv", "digitallyactive"),
-    (r"tilemanager|tile manager", "tilemanager"),
-    (r"oracle|sql\b", "SQL"),
-    (r"vibe.?code|hobby|privat", "privat"),
+    (r"\btest\b|test.cases?|testing", "test"),
+    (r"\bdeploy\b|deployment|release.tag|release.notes", "deploy"),
+    (r"\bdebug\b|fix|error|bug", "debug"),
+    (r"\bdoc(s|umentation)?\b", "docs"),
+    (r"\bsql\b|database|oracle", "sql"),
+    (r"\bkubernetes\b|kubectl|\bk8s\b|pod\b", "kubernetes"),
+    (r"\brefactor\b|cleanup|restructure", "refactor"),
+    (r"\bauth\b|authentication|login|token", "auth"),
+    (r"\bapi\b|endpoint|rest|graphql", "api"),
+    (r"\bci\b|pipeline|build|github.actions", "ci"),
     (r"session.optim", "session-optimizer"),
 ]
 
 
 def extract_keywords(jsonl_path: Path) -> list[str]:
-    """Rask heuristisk skanning – returnerer 1-3 nøkkelord for sesjonen."""
+    """Quick heuristic scan — returns 1-3 keywords describing the session."""
     skills: list[str] = []
     work_items: list[str] = []
     topics: list[str] = []
@@ -156,7 +152,7 @@ def extract_keywords(jsonl_path: Path) -> list[str]:
 
                 if obj.get("type") == "user":
                     content = obj.get("message", {}).get("content", "")
-                    # Kun ren bruker-tekst – ikke tool_result-blokker
+                    # Only scan plain user text, not tool_result blocks
                     if isinstance(content, str):
                         text = content
                     elif isinstance(content, list):
@@ -171,9 +167,9 @@ def extract_keywords(jsonl_path: Path) -> list[str]:
                         if label not in seen_topics and re.search(pat, text, re.IGNORECASE):
                             topics.append(label)
                             seen_topics.add(label)
-                    # Kun 6-sifrede ADO-tall i DIPS-området (7xxxxx)
-                    for m in re.findall(r"\b(7\d{5})\b", text):
-                        wi = f"PBI {m}"
+                    # Work item IDs: 6+ digit numbers prefixed with # or common tracker patterns
+                    for m in re.findall(r"(?:#|issue\s*)(\d{4,7})\b", text, re.IGNORECASE):
+                        wi = f"#{m}"
                         if wi not in work_items:
                             work_items.append(wi)
 
@@ -187,18 +183,18 @@ def extract_keywords(jsonl_path: Path) -> list[str]:
         pass
 
     result: list[str] = []
-    # Skill-kall er mest informative
+    # Skill calls are most informative
     result.extend(skills[:2])
-    # PBI-numre (maks 2)
+    # Work item IDs (max 2)
     for wi in work_items[:2]:
         if len(result) < 3:
             result.append(wi)
-    # Emneord fra meldinger
+    # Topic words from messages
     for t in topics:
         if t not in result and len(result) < 3:
             result.append(t)
 
-    return result or ["(ukjent)"]
+    return result or ["(unknown)"]
 
 
 def format_size(bytes: int) -> str:
@@ -209,7 +205,7 @@ def format_size(bytes: int) -> str:
     return f"{bytes / 1024 ** 2:.1f} MB"
 
 
-# --- Liste ---
+# --- List ---
 
 def list_sessions(limit: int = 20, as_json: bool = False, sort_by_size: bool = False,
                   unanalyzed_only: bool = False) -> None:
@@ -217,7 +213,7 @@ def list_sessions(limit: int = 20, as_json: bool = False, sort_by_size: bool = F
     jsonl_files = all_session_files()
 
     if not jsonl_files:
-        print("Ingen sesjoner funnet.", file=sys.stderr)
+        print("No sessions found.", file=sys.stderr)
         return
 
     if unanalyzed_only:
@@ -255,7 +251,7 @@ def list_sessions(limit: int = 20, as_json: bool = False, sort_by_size: bool = F
                          ensure_ascii=False))
         return
 
-    print(f"{'#':<3} {'':2} {'Dato':<17} {'Str':<8} {'UUID':<36}  Nøkkelord")
+    print(f"{'#':<3} {'':2} {'Date':<17} {'Size':<8} {'UUID':<36}  Keywords")
     print("-" * 115)
     for r in rows:
         check = "✓" if r["analyzed"] else " "
@@ -263,8 +259,8 @@ def list_sessions(limit: int = 20, as_json: bool = False, sort_by_size: bool = F
         print(f"{r['index']:<3} {check}  {r['date']:<17} {r['size']:<8} {r['uuid']:<36}  {kw}")
 
     if remaining > 0:
-        label = "uanalyserte " if unanalyzed_only else ""
-        print(f"\n... og {remaining} eldre {label}sesjoner. Bruk --limit {len(jsonl_files)} for å se alle.")
+        label = "unanalyzed " if unanalyzed_only else ""
+        print(f"\n... and {remaining} older {label}sessions. Use --limit {len(jsonl_files)} to see all.")
 
 
 # --- Parsing ---
@@ -340,7 +336,7 @@ def build_summary(events: list[dict]) -> str:
     for ev in events:
         role = ev["role"]
         if role == "user":
-            lines.append(f"[BRUKER] {ev['text']}")
+            lines.append(f"[USER] {ev['text']}")
         elif role == "assistant_text":
             lines.append(f"[CLAUDE] {ev['text']}")
         elif role == "tool_use":
@@ -349,7 +345,7 @@ def build_summary(events: list[dict]) -> str:
             lines.append(f"[TOOL] {ev['name']}({input_summary})")
         elif role == "tool_result":
             tool_name = tool_id_to_name.get(ev["tool_use_id"], "?")
-            status = "FEIL" if ev["is_error"] else "OK"
+            status = "ERROR" if ev["is_error"] else "OK"
             lines.append(f"[RESULT:{status}] ({tool_name}) {ev['content']}")
 
     return "\n".join(lines)
@@ -369,7 +365,7 @@ def resolve_session(value: str) -> Path:
     for f in all_session_files():
         if f.stem == stem:
             return f
-    raise FileNotFoundError(f"Fant ikke sesjon: {value}")
+    raise FileNotFoundError(f"Session not found: {value}")
 
 
 def output_transcript(session_file: Path) -> None:
@@ -388,18 +384,18 @@ def output_transcript(session_file: Path) -> None:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Komprimer og skriv ut Claude Code-sesjon for analyse"
+        description="Compress and print a Claude Code session for analysis"
     )
-    parser.add_argument("--session", help="UUID, filnavn eller full sti til sesjon (default: siste)")
-    parser.add_argument("--list", action="store_true", help="Vis tilgjengelige sesjoner")
-    parser.add_argument("--unanalyzed", action="store_true", help="Vis/hent kun uanalyserte sesjoner")
-    parser.add_argument("--analyze-all", action="store_true", help="List alle uanalyserte sesjoner som JSON (for skill-loop)")
-    parser.add_argument("--mark-analyzed", metavar="UUID", help="Marker sesjon som analysert")
-    parser.add_argument("--operation-type", default="", help="Operasjonstype ved --mark-analyzed")
-    parser.add_argument("--memory-files", default="", help="Kommaseparerte minnefiler ved --mark-analyzed")
-    parser.add_argument("--limit", type=int, default=20, help="Maks antall sesjoner i listen (default: 20)")
-    parser.add_argument("-s", "--sort-size", action="store_true", help="Sorter etter filstørrelse, største først")
-    parser.add_argument("--json", action="store_true", help="Output som JSON (brukes av skill)")
+    parser.add_argument("--session", help="UUID, filename, or full path to session (default: latest)")
+    parser.add_argument("--list", action="store_true", help="List available sessions")
+    parser.add_argument("--unanalyzed", action="store_true", help="Show/fetch only unanalyzed sessions")
+    parser.add_argument("--analyze-all", action="store_true", help="List all unanalyzed sessions as JSON (for skill loop)")
+    parser.add_argument("--mark-analyzed", metavar="UUID", help="Mark a session as analyzed")
+    parser.add_argument("--operation-type", default="", help="Operation type for --mark-analyzed")
+    parser.add_argument("--memory-files", default="", help="Comma-separated memory files for --mark-analyzed")
+    parser.add_argument("--limit", type=int, default=20, help="Max sessions to show in list (default: 20)")
+    parser.add_argument("-s", "--sort-size", action="store_true", help="Sort by file size, largest first")
+    parser.add_argument("--json", action="store_true", help="Output as JSON (used by skill)")
     args = parser.parse_args()
 
     if args.mark_analyzed:
@@ -432,7 +428,7 @@ def main():
         session_file = find_latest_session(unanalyzed_only=args.unanalyzed)
 
     if not session_file or not session_file.exists():
-        print("Feil: Ingen sesjonsfil funnet.", file=sys.stderr)
+        print("Error: no session file found.", file=sys.stderr)
         sys.exit(1)
 
     output_transcript(session_file)
