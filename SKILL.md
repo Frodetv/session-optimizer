@@ -1,6 +1,6 @@
 ---
 name: session-optimize
-description: Analyser gjeldende sesjon for token-besparelser og oppdater minnefiler. Bruk denne skillen når brukeren ber om å analysere sesjonen, finne token-besparelser, optimalisere neste sesjon, eller lagre lærdommer. Triggres av fraser som "analyser sesjonen", "optimaliser", "lagre lærdommer", "token-besparelser", "session-optimize".
+description: Analyser gjeldende sesjon for token-besparelser og oppdater minnefiler. Bruk denne skillen når brukeren ber om å analysere sesjonen, finne token-besparelser, optimalisere neste sesjon, lagre lærdommer, eller analysere alle sesjoner. Triggres av fraser som "analyser sesjonen", "optimaliser", "lagre lærdommer", "token-besparelser", "session-optimize", "analyser alle sesjoner".
 ---
 
 # Session Optimizer
@@ -9,52 +9,49 @@ Analyser hva som ble gjort i sesjonen og oppdater minnefiler med kortveier for n
 
 ## Fremgangsmåte
 
-### Steg 0 – Hvis brukeren vil velge sesjon (valgfritt)
+### Steg 0 – Velg modus
 
-Hvis brukeren vil analysere en tidligere sesjon og ikke den siste, kjør:
+**A) Analyser siste sesjon (default)**
+Gå rett til Steg 1.
 
+**B) Analyser alle uanalyserte sesjoner (`--analyze-all`)**
+Kjør:
+```bash
+python C:/DIPS/_git/session-optimizer/session_optimizer.py --analyze-all
+```
+Les JSON med liste over uanalyserte sesjoner. Gå gjennom dem én etter én (Steg 1–5 for hver). Hopp over sesjoner med færre enn 3 tool calls.
+
+**C) Brukeren vil velge sesjon fra liste**
+Kjør:
 ```bash
 python C:/DIPS/_git/session-optimizer/session_optimizer.py --list --json
 ```
+Presenter listen som markdown-tabell med kolonner: `#`, `✓`, `Dato`, `Str`, `Første melding`, `Åpne`.
+- `✓`-kolonnen: vis ✓ hvis `analyzed == true` i JSON, blank ellers
+- `Åpne`: klikkbar fillenke `[åpne](file:///<path>)` (erstatt `\` med `/`)
 
-Les JSON-output og presenter listen som en **formatert markdown-tabell** i svaret ditt (ikke vis rå Bash-output).
-- Kolonner: `#`, `Dato`, `Str` (filstørrelse), `Første melding`, `Åpne`
-- Lag en klikkbar fillenke i `Åpne`-kolonnen: `[åpne](file:///<path>)` der `<path>` er `path`-feltet fra JSON (erstatt `\` med `/` og legg til `file:///` foran)
+Spør hvilken sesjon brukeren vil analysere.
 
-Eksempel-output:
-
-| # | Dato | Str | Første melding | Åpne |
-|---|------|-----|----------------|------|
-| 1 | 2026-10-02 10:42 | 48 KB | tc og rn for 746192 | [åpne](file:///C:/Users/frtv/.claude/projects/C--Users-frtv/c2e5b651-....jsonl) |
-| 2 | 2026-10-01 09:24 | 12 KB | ok | [åpne](file:///C:/Users/frtv/.claude/projects/C--Users-frtv/1e0e4a99-....jsonl) |
-
-Spør deretter hvilken sesjon brukeren vil analysere (nummer eller UUID).
+---
 
 ### Steg 1 – Ekstraher sesjonstranskripsjonen
 
-Kjør skriptet for å lese og komprimere sesjonens JSONL:
-
 ```bash
-# Siste sesjon:
+# Siste (eller siste uanalyserte):
 python C:/DIPS/_git/session-optimizer/session_optimizer.py
 
-# Spesifikk sesjon (UUID fra listen):
+# Spesifikk sesjon:
 python C:/DIPS/_git/session-optimizer/session_optimizer.py --session <uuid>
 ```
 
-Output: én linje med metadata (JSON), deretter `---TRANSCRIPT---` etterfulgt av komprimert transkripsjon.
+Output: én linje med metadata (JSON inkl. `uuid`-felt), deretter `---TRANSCRIPT---` etterfulgt av komprimert transkripsjon.
 
 ### Steg 2 – Analyser transkripsjonen
 
-Les output fra skriptet og analyser:
-
-1. **Operasjonstype**: Hva ble egentlig gjort? (f.eks. "tc-og-rn-retina", "release-tag-gatconnector")
-2. **Redundante steg**: Hvilke tool calls var overflødige fordi svaret allerede er kjent?
-   - Eksempel: grep etter retina-filer når vi vet hvilken fil det er
-   - Eksempel: oppdage DeliveryArtifact ved å søke når det allerede er kjent
-3. **Forhåndslastbar kontekst**: Hva burde vært i en minnefil fra start?
-   - Konkrete verdier: stier, felt-verdier, regler
-4. **Foreslåtte minnefiler**: Skriv konkrete minnefil-oppdateringer
+1. **Operasjonstype**: Hva ble gjort? (f.eks. "tc-og-rn-retina", "release-tag-gatconnector")
+2. **Redundante steg**: Hvilke tool calls var overflødige?
+3. **Forhåndslastbar kontekst**: Konkrete verdier, stier, regler som burde vært kjent
+4. **Foreslåtte minnefiler**: Konkrete minnefil-oppdateringer
 
 ### Steg 3 – Presenter funn
 
@@ -66,17 +63,25 @@ Vis for brukeren:
 | Redundante steg | (liste) |
 | Kan forhåndslastes | (liste med konkrete verdier) |
 
-Og foreslåtte minnefiler med innhold.
-
 ### Steg 4 – Bekreft og lagre
 
 Spør: **"Skal jeg lagre disse lærdommene til minnefilene?"**
 
-Hvis ja: Bruk Write-verktøyet til å:
-1. Skrive nye minnefiler til `C:/Users/frtv/.claude/projects/C--Users-frtv/memory/<filnavn>.md`
-2. Legge til peker i `C:/Users/frtv/.claude/projects/C--Users-frtv/memory/MEMORY.md`
+Hvis ja:
+1. Skriv minnefiler til `C:/Users/frtv/.claude/projects/C--Users-frtv/memory/<filnavn>.md`
+2. Oppdater `C:/Users/frtv/.claude/projects/C--Users-frtv/memory/MEMORY.md`
+3. **Marker sesjonen som analysert:**
 
-**Minnefil-format:**
+```bash
+python C:/DIPS/_git/session-optimizer/session_optimizer.py \
+  --mark-analyzed <uuid> \
+  --operation-type <operasjonstype> \
+  --memory-files <filnavn1.md,filnavn2.md>
+```
+
+UUID finnes i metadata-linjen fra Steg 1 (`"uuid": "..."`).
+
+Minnefil-format:
 ```markdown
 ---
 name: kort-kebab-slug
@@ -90,11 +95,16 @@ Innhold med konkrete verdier, stier og regler.
 
 ### Steg 5 – Rapporter
 
-Fortell hva som ble lagret og hvilke token-besparelser dette gir neste gang.
+Fortell hva som ble lagret, hvilken sesjon som ble markert som analysert, og hvilke token-besparelser dette gir neste gang.
+
+Ved `--analyze-all`: fortsett med neste uanalyserte sesjon.
+
+---
 
 ## Viktige noter
 
 - Skriptet gjør ingen API-kall – Claude analyserer selv i sesjonen
-- Hvis sesjonsfilen har færre enn 3 tool calls, er analysen ikke nyttig
+- Sesjoner med færre enn 3 tool calls er ikke verdt å analysere – hopp over
+- `~/.claude/session-optimizer-history.json` sporer hvilke sesjoner som er analysert
 - Minnefilene leses automatisk i neste sesjon via MEMORY.md-indeksen
-- Kjør `pip install anthropic` er IKKE nødvendig (brukes ikke lenger)
+- `--list` viser ✓ for allerede analyserte sesjoner
