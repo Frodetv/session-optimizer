@@ -93,7 +93,15 @@ def first_user_message(jsonl_path: Path) -> str:
     return best
 
 
-def list_sessions(limit: int = 20) -> None:
+def format_size(bytes: int) -> str:
+    if bytes < 1024:
+        return f"{bytes} B"
+    if bytes < 1024 ** 2:
+        return f"{bytes / 1024:.0f} KB"
+    return f"{bytes / 1024 ** 2:.1f} MB"
+
+
+def list_sessions(limit: int = 20, as_json: bool = False) -> None:
     from datetime import datetime
     jsonl_files = all_session_files()
     if not jsonl_files:
@@ -103,13 +111,27 @@ def list_sessions(limit: int = 20) -> None:
     shown = jsonl_files[:limit]
     remaining = len(jsonl_files) - len(shown)
 
-    print(f"{'#':<3} {'Dato':<17} {'UUID':<36}  Første melding")
-    print("-" * 100)
+    rows = []
     for i, f in enumerate(shown, 1):
-        mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-        uuid = f.stem
-        first = first_user_message(f)
-        print(f"{i:<3} {mtime:<17} {uuid:<36}  {first}")
+        stat = f.stat()
+        rows.append({
+            "index": i,
+            "date": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
+            "uuid": f.stem,
+            "size": format_size(stat.st_size),
+            "size_bytes": stat.st_size,
+            "path": str(f),
+            "first_message": first_user_message(f),
+        })
+
+    if as_json:
+        print(json.dumps({"sessions": rows, "remaining": remaining, "total": len(jsonl_files)}, ensure_ascii=False))
+        return
+
+    print(f"{'#':<3} {'Dato':<17} {'Str':<8} {'UUID':<36}  Første melding")
+    print("-" * 110)
+    for r in rows:
+        print(f"{r['index']:<3} {r['date']:<17} {r['size']:<8} {r['uuid']:<36}  {r['first_message']}")
 
     if remaining > 0:
         print(f"\n... og {remaining} eldre sesjoner. Bruk --limit {len(jsonl_files)} for å se alle.")
@@ -228,10 +250,11 @@ def main():
     parser.add_argument("--session", help="UUID, filnavn eller full sti til sesjon (default: siste)")
     parser.add_argument("--list", action="store_true", help="Vis tilgjengelige sesjoner fra alle prosjekter")
     parser.add_argument("--limit", type=int, default=20, help="Maks antall sesjoner i listen (default: 20)")
+    parser.add_argument("--json", action="store_true", help="Output som JSON (brukes av skill)")
     args = parser.parse_args()
 
     if args.list:
-        list_sessions(limit=args.limit)
+        list_sessions(limit=args.limit, as_json=args.json)
         return
 
     if args.session:

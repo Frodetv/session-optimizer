@@ -14,17 +14,21 @@ Analyser hva som ble gjort i sesjonen og oppdater minnefiler med kortveier for n
 Hvis brukeren vil analysere en tidligere sesjon og ikke den siste, kjør:
 
 ```bash
-python C:/DIPS/_git/session-optimizer/session_optimizer.py --list
+python C:/DIPS/_git/session-optimizer/session_optimizer.py --list --json
 ```
 
-Les output og presenter listen som en **formatert markdown-tabell** i svaret ditt (ikke vis rå Bash-output). Eksempel:
+Les JSON-output og presenter listen som en **formatert markdown-tabell** i svaret ditt (ikke vis rå Bash-output).
+- Kolonner: `#`, `Dato`, `Str` (filstørrelse), `Første melding`, `Åpne`
+- Lag en klikkbar fillenke i `Åpne`-kolonnen: `[åpne](file:///<path>)` der `<path>` er `path`-feltet fra JSON (erstatt `\` med `/` og legg til `file:///` foran)
 
-| # | Dato | UUID | Første melding |
-|---|------|------|----------------|
-| 1 | 2026-10-02 10:42 | c2e5b651-... | tc og rn for 746192 |
-| 2 | 2026-10-01 09:24 | 1e0e4a99-... | ok |
+Eksempel-output:
 
-Spør deretter hvilken sesjon brukeren vil analysere.
+| # | Dato | Str | Første melding | Åpne |
+|---|------|-----|----------------|------|
+| 1 | 2026-10-02 10:42 | 48 KB | tc og rn for 746192 | [åpne](file:///C:/Users/frtv/.claude/projects/C--Users-frtv/c2e5b651-....jsonl) |
+| 2 | 2026-10-01 09:24 | 12 KB | ok | [åpne](file:///C:/Users/frtv/.claude/projects/C--Users-frtv/1e0e4a99-....jsonl) |
+
+Spør deretter hvilken sesjon brukeren vil analysere (nummer eller UUID).
 
 ### Steg 1 – Ekstraher sesjonstranskripsjonen
 
