@@ -3,7 +3,7 @@ name = "session-optimizer"
 version = "0.1.0"
 description = "Analyze Claude Code sessions to save tokens next time"
 requires-python = ">=3.11"
-dependencies = ["anthropic>=0.40.0"]
+dependencies = []
 
 [project.scripts]
 session-optimizer = "session_optimizer:main"

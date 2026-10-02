@@ -4,7 +4,8 @@ Tool that analyzes Claude Code sessions and updates memory files to save tokens 
 
 ## Setup
 
-Run `.\install.ps1` to install the skill, or copy `SKILL.md` manually to `~/.claude/skills/session-optimize/SKILL.md`.
+1. `pip install -e .` to install the `session-optimizer` CLI command
+2. Run `.\install.ps1` to copy the skill to `~/.claude/skills/`
 
 **Requirements:** Python 3.11+
 
@@ -12,17 +13,19 @@ Run `.\install.ps1` to install the skill, or copy `SKILL.md` manually to `~/.cla
 
 ```bash
 # Latest session:
-python session_optimizer.py
+session-optimizer
 
 # Specific session:
-python session_optimizer.py --session <uuid>
+session-optimizer --session <uuid>
 
 # List sessions (sorted by size):
-python session_optimizer.py --list -s
+session-optimizer --list -s
 
 # Mark a session as analyzed:
-python session_optimizer.py --mark-analyzed <uuid> --operation-type deploy --memory-files file.md
+session-optimizer --mark-analyzed <uuid> --operation-type deploy --memory-files file.md
 ```
+
+Without `pip install`, use `python /path/to/session_optimizer.py` instead.
 
 ## Session files
 

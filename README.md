@@ -24,7 +24,16 @@ git clone https://github.com/Frodetv/session-optimizer.git
 cd session-optimizer
 ```
 
-**2. Install the skill**
+**2. Install the CLI command** (optional, but recommended)
+
+This makes the `session-optimizer` command available everywhere:
+```bash
+pip install -e .
+```
+
+Without this step, replace `session-optimizer` with `python /path/to/session_optimizer.py` in the skill instructions.
+
+**3. Install the skill**
 
 PowerShell:
 ```powershell
@@ -36,7 +45,7 @@ Or manually copy `SKILL.md` to your Claude skills folder:
 ~/.claude/skills/session-optimize/SKILL.md
 ```
 
-**3. Restart Claude Code** to activate the skill.
+**4. Restart Claude Code** to activate the skill.
 
 ## Usage
 
@@ -59,15 +68,15 @@ Claude estimates how long it will take and asks whether to analyze all sessions,
 ### List sessions
 
 ```bash
-python session_optimizer.py --list
+session-optimizer --list
 ```
 
 ```
 #      Date              Size     UUID                                  Keywords
 -------------------------------------------------------------------------------------------------------------------
-1   ✓  2026-10-02 12:07  1.9 MB   a1b2c3d4-...                          release-notes, deploy, PBI 123456
-2      2026-09-29 08:50  1.0 MB   e5f6a7b8-...                          PBI 123457, test-cases, auth
-3      2026-09-21 12:36  545 KB   c9d0e1f2-...                          docs, release-tag, PBI 123458
+1   ✓  2026-10-02 12:07  1.9 MB   a1b2c3d4-...                          deploy, release-notes, #1042
+2      2026-09-29 08:50  1.0 MB   e5f6a7b8-...                          debug, auth
+3      2026-09-21 12:36  545 KB   c9d0e1f2-...                          docs, release-tag
 ```
 
 - `✓` marks sessions that have already been analyzed
@@ -76,17 +85,17 @@ python session_optimizer.py --list
 
 Sort by file size (largest sessions = most to save):
 ```bash
-python session_optimizer.py --list -s
+session-optimizer --list -s
 ```
 
 Show only unanalyzed sessions:
 ```bash
-python session_optimizer.py --list --unanalyzed
+session-optimizer --list --unanalyzed
 ```
 
 Analyze a specific session by UUID:
 ```bash
-python session_optimizer.py --session e5f6a7b8-0000-0000-0000-000000000000
+session-optimizer --session e5f6a7b8-0000-0000-0000-000000000000
 ```
 
 ## Session tracking
@@ -95,7 +104,7 @@ Analyzed sessions are recorded in `~/.claude/session-optimizer-history.json` wit
 
 When saving memory files, the skill calls:
 ```bash
-python session_optimizer.py \
+session-optimizer \
   --mark-analyzed <uuid> \
   --operation-type <type> \
   --memory-files <file1.md,file2.md>
