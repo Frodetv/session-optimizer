@@ -50,9 +50,21 @@ Run `/session-optimize` at the end of any session where you performed a repeatab
 
 Claude will present the analysis and ask for confirmation before writing anything to disk.
 
-To analyze a specific session file instead of the latest:
+To list all available sessions with date and first message:
 ```bash
-python session_optimizer.py --session ~/.claude/projects/<project>/<session-id>.jsonl
+python session_optimizer.py --list
+```
+```
+#   Dato              UUID                                  Første melding
+------------------------------------------------------------
+1   2026-10-02 10:36  c2e5b651-...                          hei
+2   2026-10-01 09:24  1e0e4a99-...                          hei
+...
+```
+
+To analyze a specific session, pass the UUID from the list:
+```bash
+python session_optimizer.py --session 1e0e4a99-de7d-4738-9b32-d8be283254d1
 ```
 
 ## What gets saved

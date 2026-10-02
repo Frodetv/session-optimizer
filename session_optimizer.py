@@ -6,7 +6,9 @@ Skriptet gjør INGEN API-kall selv. Det leser og komprimerer sesjonens JSONL
 og skriver den til stdout slik at Claude Code kan analysere den i-sesjon.
 
 Bruk:
-  python session_optimizer.py [--session <path>] [--project-dir <path>]
+  python session_optimizer.py                        # siste sesjon
+  python session_optimizer.py --list                 # vis tilgjengelige sesjoner
+  python session_optimizer.py --session <uuid|sti>   # spesifikk sesjon
 """
 
 import argparse
@@ -39,6 +41,43 @@ def find_latest_session(project_dir: Path) -> Path | None:
     if not jsonl_files:
         return None
     return max(jsonl_files, key=lambda f: f.stat().st_mtime)
+
+
+def first_user_message(jsonl_path: Path) -> str:
+    try:
+        with open(jsonl_path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    obj = json.loads(line)
+                    if obj.get("type") == "user":
+                        content = obj.get("message", {}).get("content", "")
+                        if isinstance(content, str) and content.strip():
+                            return content.strip()[:80]
+                except json.JSONDecodeError:
+                    pass
+    except OSError:
+        pass
+    return "(ukjent)"
+
+
+def list_sessions(project_dir: Path) -> None:
+    from datetime import datetime
+    jsonl_files = sorted(
+        project_dir.glob("*.jsonl"),
+        key=lambda f: f.stat().st_mtime,
+        reverse=True,
+    )
+    if not jsonl_files:
+        print("Ingen sesjoner funnet.", file=sys.stderr)
+        return
+
+    print(f"{'#':<3} {'Dato':<17} {'UUID':<36}  Første melding")
+    print("-" * 100)
+    for i, f in enumerate(jsonl_files, 1):
+        mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        uuid = f.stem
+        first = first_user_message(f)
+        print(f"{i:<3} {mtime:<17} {uuid:<36}  {first}")
 
 
 # --- Parsing ---
@@ -135,15 +174,39 @@ def count_tool_calls(events: list[dict]) -> int:
 
 # --- Main ---
 
+def resolve_session(value: str, project_dir: Path) -> Path:
+    p = Path(value)
+    if p.exists():
+        return p
+    # Prøv som UUID (med eller uten .jsonl)
+    stem = p.stem if p.suffix == ".jsonl" else value
+    candidate = project_dir / f"{stem}.jsonl"
+    if candidate.exists():
+        return candidate
+    raise FileNotFoundError(f"Fant ikke sesjon: {value}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Komprimer og skriv ut Claude Code-sesjon for analyse"
     )
-    parser.add_argument("--session", type=Path, help="Sti til JSONL-fil (default: siste sesjon)")
+    parser.add_argument("--session", help="UUID, filnavn eller full sti til sesjon (default: siste)")
+    parser.add_argument("--list", action="store_true", help="Vis tilgjengelige sesjoner")
     parser.add_argument("--project-dir", type=Path, default=DEFAULT_PROJECT_DIR)
     args = parser.parse_args()
 
-    session_file = args.session or find_latest_session(args.project_dir)
+    if args.list:
+        list_sessions(args.project_dir)
+        return
+
+    if args.session:
+        try:
+            session_file = resolve_session(args.session, args.project_dir)
+        except FileNotFoundError as e:
+            print(str(e), file=sys.stderr)
+            sys.exit(1)
+    else:
+        session_file = find_latest_session(args.project_dir)
 
     if not session_file or not session_file.exists():
         print("Feil: Ingen sesjonsfil funnet.", file=sys.stderr)
