@@ -2,8 +2,6 @@
 
 A Claude Code skill that analyzes your AI session after the fact, identifies redundant steps, and updates your memory files with shortcuts — so the next time you run the same operation, Claude uses fewer tokens.
 
-![session-optimize skill in Claude Code](Session-optimize.png)
-
 ## How it works
 
 When you invoke `/session-optimize`, Claude:
@@ -65,15 +63,15 @@ python session_optimizer.py --list
 ```
 
 ```
-#      Dato              Str      UUID                                  Nøkkelord
+#      Date              Size     UUID                                  Keywords
 -------------------------------------------------------------------------------------------------------------------
-1   ✓  2026-10-02 12:07  1.9 MB   c2e5b651-...                          ado-release-notes, session-optimize, PBI 746192
-2      2026-09-29 08:50  1.0 MB   44c55850-...                          PBI 744825, TC, kjernejournal
-3      2026-09-21 12:36  545 KB   5180cb8d-...                          brukerdok, release-tag, PBI 743755
+1   ✓  2026-10-02 12:07  1.9 MB   a1b2c3d4-...                          release-notes, deploy, PBI 123456
+2      2026-09-29 08:50  1.0 MB   e5f6a7b8-...                          PBI 123457, test-cases, auth
+3      2026-09-21 12:36  545 KB   c9d0e1f2-...                          docs, release-tag, PBI 123458
 ```
 
 - `✓` marks sessions that have already been analyzed
-- Keywords are extracted automatically from skill calls, ADO work item IDs, and topic words in user messages
+- Keywords are extracted automatically from skill calls, work item IDs, and topic words in user messages
 - Greetings are skipped — keywords describe what was actually done
 
 Sort by file size (largest sessions = most to save):
@@ -110,20 +108,19 @@ Learnings are saved as Markdown files in `~/.claude/projects/<project>/memory/` 
 Example output for a "create release notes" operation:
 
 ```
-Operation type : release-notes-backend
-Summary        : Created release notes and test cases for a backend API change
+Operation type : deploy-backend-service
 
 Redundant steps:
-  - Searched for documentation file (path is already known for this component)
-  - Ran git grep to find delivery artifact (already known from previous sessions)
+  - Searched for config file (path is already known for this component)
+  - Looked up artifact name via grep (already known from previous sessions)
 
 Can be preloaded:
-  + DeliveryArtifact = my-service
-  + ProductName = My Product Name
-  + Docs path: docs/my-component.md (skip search)
+  + ArtifactName = my-service
+  + ProductName = My Product
+  + Config path: deploy/my-service/values.yaml (skip search)
 
 Proposed memory updates:
-  [create] project_myservice_shortcuts.md — Shortcuts for release notes on MyService
+  [create] project_myservice_shortcuts.md — Shortcuts for deploying MyService
 ```
 
 ## Files
