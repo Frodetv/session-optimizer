@@ -101,12 +101,15 @@ def format_size(bytes: int) -> str:
     return f"{bytes / 1024 ** 2:.1f} MB"
 
 
-def list_sessions(limit: int = 20, as_json: bool = False) -> None:
+def list_sessions(limit: int = 20, as_json: bool = False, sort_by_size: bool = False) -> None:
     from datetime import datetime
     jsonl_files = all_session_files()
     if not jsonl_files:
         print("Ingen sesjoner funnet.", file=sys.stderr)
         return
+
+    if sort_by_size:
+        jsonl_files = sorted(jsonl_files, key=lambda f: f.stat().st_size, reverse=True)
 
     shown = jsonl_files[:limit]
     remaining = len(jsonl_files) - len(shown)
@@ -250,11 +253,12 @@ def main():
     parser.add_argument("--session", help="UUID, filnavn eller full sti til sesjon (default: siste)")
     parser.add_argument("--list", action="store_true", help="Vis tilgjengelige sesjoner fra alle prosjekter")
     parser.add_argument("--limit", type=int, default=20, help="Maks antall sesjoner i listen (default: 20)")
+    parser.add_argument("-s", "--sort-size", action="store_true", help="Sorter etter filstørrelse, største først")
     parser.add_argument("--json", action="store_true", help="Output som JSON (brukes av skill)")
     args = parser.parse_args()
 
     if args.list:
-        list_sessions(limit=args.limit, as_json=args.json)
+        list_sessions(limit=args.limit, as_json=args.json, sort_by_size=args.sort_size)
         return
 
     if args.session:
